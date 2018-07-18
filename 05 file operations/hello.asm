@@ -286,7 +286,7 @@ getFiles proc
 	
 ;---------------------------------------------- done finding textfiles
 	nothinghere:
-	pop eax
+	call FindClose
 ;-----------------------------------------------find all directories
 
 	push offset foundfile
@@ -294,10 +294,10 @@ getFiles proc
 	call FindFirstFileA 	
 	push eax
 	
-	cmp eax, INVALID_HANDLE_VALUE
+	cmp eax, INVALID_HANDLE_VALUE ; skips search for if there are no directories
 	je nothinghere2
 
-	mov eax, foundfile.dwFileAttributes
+	mov eax, foundfile.dwFileAttributes ; this is technically uneeded
 	and eax, FILE_ATTRIBUTE_DIRECTORY
 	jz printerrythang2
 	
@@ -355,7 +355,7 @@ getFiles proc
 	
 	nothinghere2:
 	
-	pop eax
+	call FindClose; gets rid of no longer needed search handle to allow new search handle to be seen
 	
 	lea ecx, [currentdirectory] ;return currentdirectory to previous state
 	getlast:
