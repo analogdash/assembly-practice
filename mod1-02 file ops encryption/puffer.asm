@@ -1,13 +1,6 @@
 include C:\masm32\include\masm32rt.inc
 
 .data
-
-done_parray db "done with parray",10, 0
-done_parray2 db "done with parray2",10, 0
-done_sbox db "done with sboxes",10, 0
-stuck_encrypt db "stuck in encrypt",10, 0
-eeseex db 10, 33 DUP (0)
-
 ; hex digits of pi from https://www.schneier.com/code/constants.txt
 ;don't interrupt the sboxes and parray, they need to be declared in this exact order
 sbox0 dd 0d1310ba6h, 098dfb5ach, 02ffd72dbh, 0d01adfb7h, 0b8e1afedh, 06a267e96h
@@ -183,13 +176,13 @@ sbox3af dd 085cbfe4eh, 08ae88dd8h, 07aaaf9b0h, 04cf9aa7eh, 01948c25ch, 002fb8a8c
 sbox3ag dd 001c36ae4h, 0d6ebe1f9h, 090d4f869h, 0a65cdea0h, 03f09252dh, 0c208e69fh
 sbox3ah dd 0b74e6132h, 0ce77e25bh, 0578fdfe3h, 03ac372e6h
 parray dd 0243f6a88h, 0085a308d3h, 0013198a2eh, 0003707344h, 00a4093822h, 00299f31d0h, 00082efa98h, 00ec4e6c89h, 00452821e6h, 0038d01377h, 00be5466cfh, 0034e90c6ch, 00c0ac29b7h, 00c97c50ddh, 003f84d5b5h, 00b5470917h, 009216d5d9h, 008979fb1bh
-;It is very important that encodeme is declared after parray because the key initialization loop ends with a pointer comparison
+;It is very important that encodeme is declared after parray because the key initialization loop ends with a pointer comparison (its contents do not matter)
 encodeme db "The last question was asked for the first time, half in jest, on May 21, 2061, at a time when humanity first stepped into the light. The question came about as a result of a five dollar bet over highballs, and it happened this way:",0
 ;key length is 4 to 56 bytes, doubled to make rollover easier
-key dd 0
-key2 dd 0
-;key db "let there be light"
-;key2 db "let there be light"
+key db "let there be light"
+key2 db "let there be light"
+
+decodeme db 1024 DUP(0)
 
 leftside db 33 DUP(0)
 rightside db 33 DUP(0)
@@ -251,26 +244,18 @@ blowfish_encrypt proc ;left is eax, right is ebx
 	lea ecx, [parray]
 	add ecx, 8 ;this is a hack for stopping 8 bytes (2 dds) from end
 	keepgoing:
-	sub ecx, 8
-	xor eax, [ecx]
-	push eax
-	push ecx
-	call fbox
-	pop ecx
-	xor eax, ebx
-	pop ebx
-	add ecx, 12
-	lea edx, [encodeme]
-	cmp ecx, edx
-	jl keepgoing
-
-;pushad
-;push offset eeseex+1
-;push [ecx]
-;call dw2hex
-;push offset stuck_encrypt
-;call StdOut
-;popad
+		sub ecx, 8
+		xor eax, [ecx]
+		push eax
+		push ecx
+		call fbox
+		pop ecx
+		xor eax, ebx
+		pop ebx
+		add ecx, 12
+		lea edx, [encodeme]
+		cmp ecx, edx
+			jl keepgoing
 	
 	push eax
 	mov eax, ebx
@@ -291,27 +276,19 @@ blowfish_decrypt proc ;left is eax, right is ebx
 
 	sub ecx, 4 ;this is a hack for stopping 8 bytes (2 dds) from end
 	keepgoing:
-	add ecx, 4
-	xor eax, [ecx]
-	push eax
-	push ecx
-	call fbox
-	pop ecx
-	xor eax, ebx
-	pop ebx
-	
-	sub ecx, 8
-	lea edx, [parray]
-	cmp ecx, edx
-	jg keepgoing
-
-;pushad
-;push offset eeseex+1
-;push [ecx]
-;call dw2hex
-;push offset stuck_encrypt
-;call StdOut
-;popad
+		add ecx, 4
+		xor eax, [ecx]
+		push eax
+		push ecx
+		call fbox
+		pop ecx
+		xor eax, ebx
+		pop ebx
+		
+		sub ecx, 8
+		lea edx, [parray]
+		cmp ecx, edx
+			jg keepgoing
 	
 	push eax
 	mov eax, ebx
@@ -325,136 +302,92 @@ blowfish_decrypt proc ;left is eax, right is ebx
 
 blowfish_decrypt endp
 
+initialize_blowfish proc
+
+	;initialize key into P array
+	lea ecx, [parray]
+	lea ebx, [key]
+	noadjust:
+	mov eax, [ebx]
+	xor [ecx], eax
+
+	add ebx, 4
+	add ecx, 4
+	lea edx, [encodeme]
+	cmp ecx, edx
+	je donepkey
+	lea edx, [key2]
+	cmp ebx, edx
+	jl noadjust
+	sub ebx, edx
+	lea ebx, [key+ebx]
+	jmp noadjust
+	donepkey:
+
+	; blowfish encrypt 00000000 to recreate P array
+	xor eax,eax
+	xor ebx,ebx
+
+	lea ecx, [parray]
+
+	keepgoingparray:
+		push ecx
+		call blowfish_encrypt
+		pop ecx
+
+		mov [ecx], eax
+		add ecx, 4
+		mov [ecx], ebx
+		add ecx, 4
+
+		lea edx, [encodeme]
+		cmp ecx, edx
+			jl keepgoingparray
+
+	lea ecx, [sbox0]
+
+	keepgoingsbox:
+		push ecx
+		call blowfish_encrypt
+		pop ecx
+
+		mov [ecx], eax
+		add ecx, 4
+
+		mov [ecx], ebx
+		add ecx, 4
+		lea edx, [parray]
+		cmp ecx, edx
+		jl keepgoingsbox
+
+	ret
+
+initialize_blowfish endp
+
 main:
 
-;initialize key into P array
-lea ecx, [parray]
-lea ebx, [key]
-noadjust:
-mov eax, [ebx]
-xor [ecx], eax
+call initialize_blowfish
 
 
-;pushad
-;push offset eeseex+1
-;push [ecx]
-;call dw2hex
-;push offset eeseex
-;call StdOut
-;popad
+lea ecx, [encodeme]
+lea edx, [decodeme]
 
-add ebx, 4
+mov eax, [ecx]
 add ecx, 4
-lea edx, [encodeme]
-cmp ecx, edx
-je donepkey
-lea edx, [key2]
-cmp ebx, edx
-jl noadjust
-sub ebx, edx
-lea ebx, [key+ebx]
-;add ebx, key
-jmp noadjust
-donepkey:
-
-;Initializing PArray is no problemo
-;pushad
-;push offset done_parray
-;call StdOut
-;popad
-
-; blowfish encrypt 00000000 to recreate P array
-xor eax,eax
-xor ebx,ebx
-
-lea ecx, [parray]
-
-keepgoingparray:
-
-;pushad
-;push offset eeseex+1
-;push [ecx]
-;call dw2hex
-;push offset eeseex
-;call StdOut
-;popad
+mov ebx, [ecx]
+add ecx, 4
 
 push ecx
+push edx
 call blowfish_encrypt
+pop edx
 pop ecx
 
-mov [ecx], eax
-add ecx, 4
+mov [edx], eax
+add edx, 4
+mov [edx], ebx
+add edx, 4
 
-;pushad
-;push offset eeseex+1
-;push [ecx]
-;call dw2hex
-;push offset eeseex
-;call StdOut
-;popad
-
-mov [ecx], ebx
-add ecx, 4
-
-lea edx, [encodeme]
-cmp ecx, edx
-jl keepgoingparray
-
-pushad
-push offset done_parray2
-call StdOut
-popad
-;----------------------------------set Parray is goood
-
-
-lea ecx, [sbox0]
-
-keepgoingsbox:
-push ecx
-call blowfish_encrypt
-pop ecx
-
-;pushad
-;push offset eeseex+1
-;push [ecx]
-;call dw2hex
-;push offset eeseex
-;call StdOut
-;popad
-
-mov [ecx], eax
-add ecx, 4
-
-;pushad
-;push offset eeseex+1
-;push [ecx]
-;call dw2hex
-;push offset eeseex
-;call StdOut
-;popad
-
-mov [ecx], ebx
-add ecx, 4
-lea edx, [parray]
-cmp ecx, edx
-jl keepgoingsbox
-
-pushad
-push offset done_sbox
-call StdOut
-popad
-
-; PArray and SBoxes initialized at this point!
-
-xor eax, eax
-xor ebx, ebx
-
-call blowfish_encrypt
-
-;push eax
-;mov eax, ebx
-;pop ebx
 
 
 call blowfish_decrypt
