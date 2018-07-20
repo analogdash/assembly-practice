@@ -30,9 +30,9 @@ main:
 	call GetCL
 	
 	cmp al, 2
-	jne argerror ;third argument has something going on
+	jne argerror ;third argument exists when it shouldn't
 	
-	mov al, [arg2]
+	mov al, [arg2] ;check if first char is a slash or dash
 	cmp al, 45
 	je continue
 	cmp al, 47

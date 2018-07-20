@@ -50,6 +50,8 @@ main:
 	jmp checkonfirst
 
 	
+	; State network for validating and determining logic
+	
 	
 SecondNexus:
 	mov al, [arg2+1]
@@ -170,25 +172,25 @@ FirstAsc3:
 FirstDescFinal:
 	lea ecx, [arg2]
 	mov [sortme], ecx
-	jmp Descending ;Descending dapaat
+	jmp Descending
 	
 FirstAscFinal:
 	lea ecx, [arg2]
 	mov [sortme], ecx
-	jmp GetSorting ;GetSorting dapat
+	jmp GetSorting
 	
 SecondDescFinal:
 	lea ecx, [arg1]
 	mov [sortme], ecx
-	jmp Descending ;Descending dapaat
+	jmp Descending
 
 SecondAscFinal:
 	lea ecx, [arg1]
 	mov [sortme], ecx
-	jmp GetSorting ;GetSorting dapat
+	jmp GetSorting
 	
 
-Descending:	
+Descending:	; Takes 2's complement for descending sort
 	mov ecx, [sortme]
 	getneggy:
 	neg BYTE PTR [ecx]
@@ -198,7 +200,8 @@ Descending:
 	
 GetSorting:
 	mov ecx, [sortme]
-;SORTING ALGO STARTS HERE
+	
+;SORTING ALGO STARTS HERE - Insertion Sort
 
 moveonward:
 	inc ecx
@@ -226,7 +229,7 @@ insertbegin:
 
 donesorting:
 	mov ecx, [sortme]
-	cmp BYTE PTR [ecx], 128
+	cmp BYTE PTR [ecx], 128 ; Determines if sorted items need to be 2's complemented back
 		jb printit
 	getneggy2:
 	neg BYTE PTR [ecx]

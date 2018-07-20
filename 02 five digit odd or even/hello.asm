@@ -12,11 +12,10 @@ includelib C:\masm32\lib\masm32.lib
 
 .data
 	Prompt db "Input here:",0
-	Input db 100 DUP(0) ;THIS IS VERY IRRESPONSIBLE. Any input greater than 100 chars will overrite final 0 terminater and into adjacent memory
+	Input db 128 DUP(0) ;THIS IS IRRESPONSIBLE. Any input greater than 128 chars will overrite final 0 terminater and into adjacent memory
 	
 	;messages
-	OnlyNumbersLow db "Please enter only numbers LOW",10,0
-	OnlyNumbersHigh db "Please enter only numbers HIGH",10,0
+	OnlyNumbers db "Please enter only numbers",10,0
 	TooBig db "Entered Number is too big. 5 digits only", 10, 0
 	Oddish db "That number is odd!",10,0
 	Evenish db "That number is even!", 10, 0
@@ -24,12 +23,13 @@ includelib C:\masm32\lib\masm32.lib
 	char db "&",10,0
 	lowend db 48
 	highend db 57
+	
 .code
 main:
 	push offset Prompt
 	call StdOut
 
-	push offset 100
+	push offset 128
 	push offset Input
 	call StdIn
 
@@ -49,23 +49,18 @@ reiterate:
 	
 	;push offset char
 	;call StdOut
+	
 	cmp al, 0
-	je endofstring ;THIS MUST BE ABOVE THE jl jump otherwise 0 triggers tryagain low!!
+	je endofstring ;This must be the first compare. Checks end of string
 	
 	cmp al, 48
-	jl tryagainlow ;THIS KEEPS TRIGGERING FOR SOME REASON THIS IS THE BROKEN PART NVM I FIXED IT
+	jl tryagain ;checks for letters or symbols below 0
 	
 	cmp al, 57
-	jg tryagainhigh
-	
-	;sub al, 48
-	;cmp al, 9
-	;jb tryagainlow
-	;add al, 48
-	
+	jg tryagain ;checks for letters or symbols above 9
 
 	inc ebx
-	sub ebx,6
+	sub ebx,6 ;6th character must be null
 	lea edx, Input
 	cmp ebx, edx
 	je InputTooBig
@@ -74,7 +69,7 @@ reiterate:
 	
 endofstring:
 	dec ebx
-	mov edx, 0 ;this is necessary for some reason
+	mov edx, 0 ;edx needs to be initialized as zero for idiv
 	mov eax, 0
 	mov al, BYTE PTR [ebx]
 	mov ecx, 2
@@ -83,12 +78,8 @@ endofstring:
 	je ItsEven
 	jne ItsOdd
 	
-tryagainlow:
-	push offset OnlyNumbersLow
-	call StdOut
-	jmp ClearInput
-tryagainhigh:
-	push offset OnlyNumbersHigh
+tryagain:
+	push offset OnlyNumbers
 	call StdOut
 	jmp ClearInput
 InputTooBig:

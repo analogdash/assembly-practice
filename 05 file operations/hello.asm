@@ -3,14 +3,13 @@ include C:\masm32\include\masm32rt.inc
 .data
 
 	currentdirectory db 260 DUP(0) ; :::WARNING::: UNIDENTIFIED BEHAVIOR IF FILE PATH EXCEEDS MAX_PATH
-	backslash db "\",0
 	currentmaskTXT db 260 DUP (0)
 	currentmaskALL db 260 DUP (0)
 
 	crlf db 0dh, 0ah, 0
 	
-	writeme db 0dh, 0ah, "dashley wuz here - " ;-------------- the order of declaration of these two memory blocks is important
-	timenow db "2000-00-00",0 ;------------- previous string is designed to overflow into this one
+	writeme db 0dh, 0ah, "dashley wuz here - " ; the order of declaration of these two memory blocks is important
+	timenow db "2000-00-00",0 ; previous string is designed to overflow into this one
 	
 	infectmsg db "Do you want to infect this file?", 0
 	infecttitle db "Infection query", 0
@@ -24,7 +23,7 @@ include C:\masm32\include\masm32rt.inc
 	
 .code
 
-refreshtime proc
+refreshtime proc ;records time and stores in timenow
 
 	push offset systime
 	call GetLocalTime
@@ -35,7 +34,7 @@ refreshtime proc
 	push eax
 	call dwtoa
 	
-	mov BYTE PTR [timenow+4], "-"
+	mov BYTE PTR [timenow+4], "-" ; this is necessary because dwtoa appends a null terminator
 	
 	xor eax, eax
 	mov ax, systime.wMonth
@@ -70,8 +69,8 @@ refreshtime proc
 	ret
 
 refreshtime endp
-;---------------------------------------------------
-loadpath proc
+
+loadpath proc ; takes the path of the worked directory and appends filename for usable string
 	lea edx, [filetowork]
 	blankingFILE:
 	mov al, [edx]
@@ -109,11 +108,8 @@ loadpath proc
 	doneappendingFILE:
 	ret
 loadpath endp
-	
-;-------------------------------------------------
 
-
-appendsig proc
+appendsig proc ; appends signature to file described by filetowork 
 	push 0
 	push FILE_ATTRIBUTE_NORMAL
 	push OPEN_EXISTING
@@ -122,8 +118,7 @@ appendsig proc
 	push GENERIC_WRITE
 	push offset filetowork
 	call CreateFileA
-	;call StdOut
-	
+		
 	push eax
 	
 	push FILE_END
@@ -143,7 +138,7 @@ appendsig proc
 	ret
 appendsig endp
 
-getFiles proc
+getFiles proc ;recursive proc to go through directory
 ;---------------------------------------- Blank out and initialize search masks
 	lea edx, [currentmaskALL]
 	blankingALL:
