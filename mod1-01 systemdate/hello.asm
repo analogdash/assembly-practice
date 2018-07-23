@@ -31,8 +31,9 @@ main:
 	call GetLocalTime
 	
 	lea ecx, [msg]
-	add ecx, 9 ;move to the end of the string
+	add ecx, 9 ;magic number to move to the end of the string (with known length)
 	
+	;my super efficient selector
 	lea edx, [sun]
 	cmp systime.wDayOfWeek, 0
 	je dayset
@@ -54,6 +55,7 @@ main:
 	lea edx, [sat]
 	dayset:
 	
+	;append day greeting to msg
 	copydaygreet:
 	mov al, [edx]
 	cmp al, 0
@@ -64,6 +66,7 @@ main:
 	jmp copydaygreet
 	daygreet:
 	
+	;another super efficient selector
 	lea edx, [eve]
 	cmp systime.wHour, 4
 	jl timeset
@@ -76,6 +79,7 @@ main:
 	lea edx, [eve]
 	timeset:
 
+	;append time greeting to msg
 	copytimegreet:
 	mov al, [edx]
 	cmp al, 0
@@ -86,26 +90,85 @@ main:
 	jmp copytimegreet
 	timegreet:
 
+	;----testing block, by this point, message is complete
+	
 	;push offset msg
 	;call StdOut
 	
-	mov ebx, 10
+	;----end testing block
 	
-	querying:
-	dec ebx
+	;first query
 	push MB_YESNO
 	push offset msgtitle
 	push offset msg
 	push 0
 	call MessageBoxA
 	
-	cmp ebx, 0
-	je wedonehere
+	cmp eax, IDYES
+	je lastbox
 	
-	cmp eax, IDNO
-	je querying
+	;Ten message boxes because counters are for variable length loops
 	
-	wedonehere:
+	push MB_YESNO
+	push offset msgtitle
+	push offset msg
+	push 0
+	call MessageBoxA
+	
+	push MB_YESNO
+	push offset msgtitle
+	push offset msg
+	push 0
+	call MessageBoxA
+	
+	push MB_YESNO
+	push offset msgtitle
+	push offset msg
+	push 0
+	call MessageBoxA
+	
+	push MB_YESNO
+	push offset msgtitle
+	push offset msg
+	push 0
+	call MessageBoxA
+	
+	push MB_YESNO
+	push offset msgtitle
+	push offset msg
+	push 0
+	call MessageBoxA
+	
+	push MB_YESNO
+	push offset msgtitle
+	push offset msg
+	push 0
+	call MessageBoxA
+	
+	push MB_YESNO
+	push offset msgtitle
+	push offset msg
+	push 0
+	call MessageBoxA
+	
+	push MB_YESNO
+	push offset msgtitle
+	push offset msg
+	push 0
+	call MessageBoxA
+	
+	push MB_YESNO
+	push offset msgtitle
+	push offset msg
+	push 0
+	call MessageBoxA
+	
+	lastbox:
+	push MB_YESNO
+	push offset msgtitle
+	push offset msg
+	push 0
+	call MessageBoxA
 	
 	ret
 end main

@@ -2,7 +2,7 @@ include C:\masm32\include\masm32rt.inc
 
 .data
 ; (✿◠‿◠)  hex digits of pi from https://www.schneier.com/code/constants.txt
-; (✿◠‿◠) don't interrupt the sboxes and parray, they need to be declared in this exact order
+;         don't interrupt the sboxes and parray, they need to be declared in this exact order
 sbox0 dd 0d1310ba6h, 098dfb5ach, 02ffd72dbh, 0d01adfb7h, 0b8e1afedh, 06a267e96h
 sbox0q dd 0ba7c9045h, 0f12c7f99h, 024a19947h, 0b3916cf7h, 00801f2e2h, 0858efc16h
 sbox0w dd 0636920d8h, 071574e69h, 0a458fea3h, 0f4933d7eh, 00d95748fh, 0728eb658h
@@ -186,6 +186,7 @@ key2 db "let there be light"
 	currentmaskTXT db 260 DUP (0)
 	currentmaskALL db 260 DUP (0)
 	filetowork db 260 DUP(0)
+	newfilename db 260 DUP(0)
 	filebuffer db 9 DUP (0)
 	crlf db 0dh, 0ah, 0
 
@@ -194,6 +195,9 @@ key2 db "let there be light"
 	arg3 db 128 DUP(0)
 	ArgErrorMsg db "Error with arguments.",0
 	action db 0 ; (✿◠‿◠) 1 for encryption, 0 for decryption
+	
+	gonenc db "gonna encrypt ",0
+	gondec db "gonna decrypt ",0
 	
 .data?
 	foundfile WIN32_FIND_DATA<>
@@ -204,7 +208,11 @@ key2 db "let there be light"
 	
 .code
 
-fbox proc ; (✿◠‿◠) runs eax through the fbox while preserving ebx,ecx, and edx
+;------------------------
+; < Begin Blowfish cipher code >
+;------------------------
+
+fbox proc ; (✿◠‿◠) runs eax through the f-box while preserving ebx,ecx, and edx
 push edx
 push ebx
 push ecx
@@ -377,9 +385,12 @@ initialize_blowfish proc
 
 initialize_blowfish endp
 
+;------------------------
+; < / End Blowfish cipher code >
+;------------------------
 
-loadpath proc
-	lea edx, [filetowork]
+loadpath proc ;writes relative path (currentdirectory) and filename into filetowork string
+	lea edx, [filetowork] ;blanks filetowork
 	blankingFILE:
 	mov al, [edx]
 	cmp al, 0
@@ -391,7 +402,7 @@ loadpath proc
 	
 	lea ecx,[currentdirectory]
 	
-	lea edx, [filetowork]
+	lea edx, [filetowork] ;copies currentdirectory into filetowork
 	copyingFILE:
 	mov al, [ecx]
 	mov BYTE PTR [edx], al
@@ -404,7 +415,7 @@ loadpath proc
 	mov BYTE PTR [edx], "\"
 	inc edx
 	
-	lea ecx, [foundfile.cFileName]
+	lea ecx, [foundfile.cFileName] ;appends filename to filetowork
 	appendingFILE:
 	mov al, [ecx]
 	mov BYTE PTR [edx], al
@@ -417,9 +428,414 @@ loadpath proc
 	ret
 loadpath endp
 
-getFiles proc
-; (✿◠‿◠) ---------------------------------------- Blank out and initialize search masks
-	lea edx, [currentmaskALL]
+loadnewfile proc ;copies filetowork to newfilename
+	lea edx, [newfilename] ;blanks newfilename
+	blankingFILE:
+	mov al, [edx]
+	cmp al, 0
+	je doneblankingFILE
+	mov BYTE PTR[edx], 0
+	inc edx
+	jmp blankingFILE
+	doneblankingFILE:
+	
+	lea ecx,[filetowork]
+	
+	lea edx, [newfilename] ;copies filetowork into newfilename
+	copyingFILE:
+	mov al, [ecx]
+	mov BYTE PTR [edx], al
+	cmp al, 0
+	je donecopyingFILE
+	inc ecx
+	inc edx
+	jmp copyingFILE
+	donecopyingFILE:
+	;mov BYTE PTR [edx], "\"
+	;inc edx
+	
+	ret
+loadnewfile endp
+
+dofile proc ; works on file
+
+;if encrypted and action is 1: skip
+;if encrypted and action is 0: decrypt
+;if not encrypted and action is 1: encrypt
+;if not encrypted and action is 0: skip
+
+	lea eax, [filetowork]
+	eofnotfound:
+	cmp BYTE PTR [eax], 0
+	je eoffound
+	inc eax
+	jmp eofnotfound
+	eoffound:
+	
+	dec eax
+	cmp BYTE PTR [eax], "d"
+	jne notenced
+	dec eax
+	cmp BYTE PTR [eax], "e"
+	jne notenced
+	dec eax
+	cmp BYTE PTR [eax], "t"
+	jne notenced
+	dec eax
+	cmp BYTE PTR [eax], "p"
+	jne notenced
+	dec eax
+	cmp BYTE PTR [eax], "y"
+	jne notenced
+	dec eax
+	cmp BYTE PTR [eax], "r"
+	jne notenced
+	dec eax
+	cmp BYTE PTR [eax], "c"
+	jne notenced
+	dec eax
+	cmp BYTE PTR [eax], "n"
+	jne notenced
+	dec eax
+	cmp BYTE PTR [eax], "e"
+	jne notenced
+	dec eax
+	cmp BYTE PTR [eax], "c"
+	jne notenced
+	dec eax
+	cmp BYTE PTR [eax], "d"
+	jne notenced
+	dec eax
+	cmp BYTE PTR [eax], "_"
+	jne notenced
+	jmp enced
+	
+	notenced:
+	cmp [action], 0
+	je skip
+	
+	;push offset gonenc
+	;call StdOut
+	;push offset filetowork
+	;call StdOut
+	;push offset crlf
+	;call StdOut
+	
+	call get_encryptan
+	ret
+	
+	enced:
+	cmp [action], 1
+	je skip
+	
+	;push offset gondec
+	;call StdOut
+	;push offset filetowork
+	;call StdOut
+	;push offset crlf
+	;call StdOut
+	
+	call get_decryptan
+	ret
+	
+	skip:
+	ret
+dofile endp
+
+get_encryptan proc
+	
+	;call loadpath
+
+	push 0
+	push FILE_ATTRIBUTE_NORMAL
+	push OPEN_EXISTING
+	push 0
+	push 0
+	push GENERIC_ALL
+	push offset filetowork ;filetowork goes here
+	call CreateFileA
+	
+	mov [filehandle], eax
+	
+	keepreading:
+	
+	mov DWORD PTR [filebuffer], 0
+	mov DWORD PTR [filebuffer+4], 0
+	
+	mov ecx, [filehandle]
+	push 0
+	push offset readbytes
+	push 8
+	push offset filebuffer
+	push ecx
+	call ReadFile
+	
+	cmp [readbytes], 0
+	je donereading
+	
+	mov ecx, [filehandle]
+	mov edx, [readbytes]
+	neg edx
+	push FILE_CURRENT
+	push 0
+	push edx ;negative of read bytes
+	push ecx ;file handle
+	call SetFilePointer
+			
+	mov eax, DWORD PTR [filebuffer]
+	mov ebx, DWORD PTR [filebuffer+4]
+	
+	call blowfish_encrypt
+	
+	mov DWORD PTR [filebuffer], eax
+	mov DWORD PTR [filebuffer+4], ebx
+		
+	;lea eax, [filebuffer]
+	;add eax, 8
+	;keepchecking:
+	;dec eax
+	;mov bl, BYTE PTR [eax]
+	;cmp bl, 0
+	;je keepchecking
+	;inc eax
+	;lea ebx, [filebuffer]
+	;sub eax, ebx
+	;middleoffile:
+	
+	;pop eax
+	mov ecx, [filehandle]
+	push 0
+	push offset writtenbytes
+	push 8 ; 8 bytes to write
+	push offset filebuffer
+	push ecx
+	call WriteFile
+	
+	cmp [readbytes], 8
+	jl donereading
+
+	jmp keepreading
+	
+	donereading:
+	
+	; Do the renamey bit
+	
+	call loadnewfile
+	
+	lea eax, [newfilename]
+	findingend:
+	cmp BYTE PTR [eax], 0
+	je foundending
+	inc eax
+	jmp findingend
+	foundending:
+	
+	mov BYTE PTR [eax], "_"
+	inc eax
+	mov BYTE PTR [eax], "d"
+	inc eax
+	mov BYTE PTR [eax], "c"
+	inc eax
+	mov BYTE PTR [eax], "e"
+	inc eax
+	mov BYTE PTR [eax], "n"
+	inc eax
+	mov BYTE PTR [eax], "c"
+	inc eax
+	mov BYTE PTR [eax], "r"
+	inc eax
+	mov BYTE PTR [eax], "y"
+	inc eax
+	mov BYTE PTR [eax], "p"
+	inc eax
+	mov BYTE PTR [eax], "t"
+	inc eax
+	mov BYTE PTR [eax], "e"
+	inc eax
+	mov BYTE PTR [eax], "d"
+
+	;push offset gonenc
+	;call StdOut
+	;push offset newfilename
+	;call StdOut
+	;push offset crlf
+	;call StdOut
+	;push offset gondec
+	;call StdOut
+	;push offset filetowork
+	;call StdOut
+	;push Offset crlf
+	;call StdOut
+	
+	mov eax, [filehandle]
+	push eax
+	call CloseHandle
+	
+	push offset newfilename
+	push offset filetowork
+	call MoveFile
+	
+	ret
+	
+get_encryptan endp
+
+get_decryptan proc
+	
+	;call loadpath
+
+	push 0
+	push FILE_ATTRIBUTE_NORMAL
+	push OPEN_EXISTING
+	push 0
+	push 0
+	push GENERIC_ALL
+	push offset filetowork ;filetowork goes here
+	call CreateFileA
+	
+	mov [filehandle], eax
+	
+	keepreading:
+	
+	mov DWORD PTR [filebuffer], 0
+	mov DWORD PTR [filebuffer+4], 0
+	
+	mov ecx, [filehandle]
+	push 0
+	push offset readbytes
+	push 8
+	push offset filebuffer
+	push ecx
+	call ReadFile
+	
+	cmp [readbytes], 0
+	je donereading
+	
+	mov ecx, [filehandle]
+	mov edx, [readbytes]
+	neg edx
+	push FILE_CURRENT
+	push 0
+	push edx ;negative of read bytes
+	push ecx ;file handle
+	call SetFilePointer
+			
+	mov eax, DWORD PTR [filebuffer]
+	mov ebx, DWORD PTR [filebuffer+4]
+	
+	call blowfish_decrypt
+	
+	mov DWORD PTR [filebuffer], eax
+	mov DWORD PTR [filebuffer+4], ebx
+
+	;--------------------------------------------------------
+	mov eax, 8
+	
+	;lea eax, [filebuffer]
+	;add eax, 8
+	;keepchecking:
+	;dec eax
+	;mov bl, BYTE PTR [eax]
+	;cmp bl, 0
+	;je keepchecking
+	;inc eax
+	;lea ebx, [filebuffer]
+	;sub eax, ebx
+	;middleoffile:
+	
+	push eax
+	mov ecx, [filehandle]
+	push 0
+	push offset writtenbytes
+	push eax
+	push offset filebuffer
+	push ecx
+	call WriteFile
+	
+	pop eax
+	cmp eax, 8
+	jl donereading
+	
+	cmp [readbytes], 8
+	jl donereading
+
+	jmp keepreading
+	
+	donereading:
+	
+	
+	
+	
+	
+	mov eax, [filehandle]
+	push eax
+	call SetEndOfFile
+
+	
+	;=================================================
+	; Do the renamey bit
+	
+	call loadnewfile
+	
+	lea eax, [newfilename]
+	findingend:
+	cmp BYTE PTR [eax], 0
+	je foundending
+	inc eax
+	jmp findingend
+	foundending:
+	
+	dec eax
+	mov BYTE PTR [eax], 0 ; d
+	dec eax
+	mov BYTE PTR [eax], 0 ; e
+	dec eax
+	mov BYTE PTR [eax], 0 ; t
+	dec eax
+	mov BYTE PTR [eax], 0 ; p
+	dec eax
+	mov BYTE PTR [eax], 0 ; y
+	dec eax
+	mov BYTE PTR [eax], 0 ; r
+	dec eax
+	mov BYTE PTR [eax], 0 ; c
+	dec eax
+	mov BYTE PTR [eax], 0 ; n
+	dec eax
+	mov BYTE PTR [eax], 0 ; e
+	dec eax
+	mov BYTE PTR [eax], 0 ; c
+	dec eax
+	mov BYTE PTR [eax], 0 ; d
+	dec eax
+	mov BYTE PTR [eax], 0 ; _
+	
+	mov eax, [filehandle]
+	
+push eax
+call CloseHandle
+	
+	;push offset gonenc
+	;call StdOut
+	push offset newfilename
+	;call StdOut
+	;push offset crlf
+	;call StdOut
+	;push offset gondec
+	;call StdOut
+	push offset filetowork
+	;call StdOut
+	;push Offset crlf
+	;call StdOut
+	call MoveFile
+
+	ret
+	
+get_decryptan endp
+
+
+getFiles proc ;(✿◠‿◠) this is where the magic happens
+
+	lea edx, [currentmaskALL] ; (✿◠‿◠) Blank out and initialize search masks
 	blankingALL:
 	mov al, [edx]
 	cmp al, 0
@@ -439,8 +855,8 @@ getFiles proc
 	jmp blankingTXT
 	doneblankingTXT:
 	
-; (✿◠‿◠) ---------------------------------------- Make search masks from currentdirectory	
-	lea ecx,[currentdirectory]
+
+	lea ecx,[currentdirectory] ; (✿◠‿◠) Make search masks from currentdirectory
 	
 	lea edx, [currentmaskALL]
 	copyingALL:
@@ -473,7 +889,7 @@ getFiles proc
 	mov BYTE PTR [edx], "\"
 	inc edx
 	
-	lea ecx, [arg1]
+	lea ecx, [arg1] ; (✿◠‿◠) Append Mask from Arg2
 	appendmask:
 	mov al, [ecx]
 	cmp al, 0
@@ -484,7 +900,7 @@ getFiles proc
 	jmp appendmask
 	doneappendingmask:
 
-; (✿◠‿◠) ---------------------------------------- Find all text files
+; ---------------------------------------- Find all text files
 	
 	push offset foundfile
 	push offset currentmaskTXT
@@ -493,17 +909,22 @@ getFiles proc
 	
 	cmp eax, INVALID_HANDLE_VALUE
 	je nothinghere
+		
+	;  --------------------------------FIRST FILE FOUND PUT FILE OPS HERE VVVV
 	
-	; (✿◠‿◠)  --------------------------------FIRST FILE FOUND PUT FILE OPS HERE
-	call loadpath
+
+	call loadpath ;filetowork is now the filename
+	call dofile
+		
+	;push offset newfilename
+	;call StdOut
+	;push offset crlf
+	;call StdOut
 	
-	push offset filetowork
-	call StdOut
-	push offset crlf
-	call StdOut
 	
-	; (✿◠‿◠) ------------------------------------- End of working with first file
-; (✿◠‿◠) ------------------------------------------- find next text files
+	
+	;  ------------------------------------- End of working with first file  ^^^^^
+;  ------------------------------------------- find next text files
 	printerrythang:
 	pop eax
 	push eax
@@ -514,23 +935,24 @@ getFiles proc
 	cmp eax, 0
 	je nothinghere
 	
-	; (✿◠‿◠) ------------------------------------------ FOUND SECOND FILE PUT FILEOPS HERE
+	; ------------------------------------------ FOUND SECOND FILE PUT FILEOPS HERE VVVVV
 	
 	call loadpath
+	call dofile
 	
-	push offset filetowork
-	call StdOut
-	push offset crlf
-	call StdOut
+	;push offset newfilename
+	;call StdOut
+	;push offset crlf
+	;call StdOut
 	
-	; (✿◠‿◠) --------------------------------------------------done working on 2nd file
+	;  --------------------------------------------------done working on 2nd file ^^^^^^
 	
 	jmp printerrythang
 	
-; (✿◠‿◠) ---------------------------------------------- done finding textfiles
+;  ---------------------------------------------- done finding textfiles
 	nothinghere:
 	call FindClose
-; (✿◠‿◠) -----------------------------------------------find all directories
+; -----------------------------------------------find all directories
 
 	push offset foundfile
 	push offset currentmaskALL
@@ -540,11 +962,11 @@ getFiles proc
 	cmp eax, INVALID_HANDLE_VALUE ; (✿◠‿◠)  skips search for if there are no directories
 	je nothinghere2
 
-	mov eax, foundfile.dwFileAttributes ; (✿◠‿◠)  this is technically uneeded
+	mov eax, foundfile.dwFileAttributes ; (✿◠‿◠)  this is technically uneeded because the first result is usually the directory "." which will be ignored
 	and eax, FILE_ATTRIBUTE_DIRECTORY
 	jz printerrythang2
 	
-	; (✿◠‿◠) ---------------------------------------- first directory found (ignore it because it's ".")
+	; ---------------------------------------- first directory found (ignore it because it's ".")
 
 	
 	printerrythang2:
@@ -562,9 +984,11 @@ getFiles proc
 	jz printerrythang2
 	
 	
-	cmp BYTE PTR [foundfile.cFileName], "." ; (✿◠‿◠) -------ignore directories that start with "."
+	cmp BYTE PTR [foundfile.cFileName], "." ; ignore directories that start with "."
 	je printerrythang2
-	; (✿◠‿◠) ---------------------------------------- second directory found
+	;  ---------------------------------------- second directory found
+	
+	; (✿◠‿◠) Preparing to recurse into found directory
 	
 	lea ecx, [currentdirectory] ; (✿◠‿◠) find null terminator of currentdirectory
 	getlastinner:
@@ -575,11 +999,11 @@ getFiles proc
 	jmp getlastinner
 	gotlastinner:
 	
-	mov BYTE PTR [ecx], "\"
+	mov BYTE PTR [ecx], "\" ; (✿◠‿◠) append a slash
 	inc ecx
 	
 	
-	lea edx, foundfile.cFileName
+	lea edx, foundfile.cFileName ; (✿◠‿◠) append the found directory name
 	appendingcurrent:
 	mov al, [edx]
 	cmp al, 0
@@ -590,17 +1014,14 @@ getFiles proc
 	jmp appendingcurrent
 	doneappending:
 	
-	call getFiles
-	
+	call getFiles ; (✿◠‿◠) RECURSION!!!
 
-	
-	jmp printerrythang2
+	jmp printerrythang2 ; (✿◠‿◠) Go back and move on to the next directory!
 	
 	nothinghere2:
-	
 	call FindClose; (✿◠‿◠)  gets rid of no longer needed search handle to allow new search handle to be seen
 	
-	lea ecx, [currentdirectory] ; (✿◠‿◠) return currentdirectory to previous state
+	lea ecx, [currentdirectory] ; (✿◠‿◠) now we return currentdirectory to previous state by erasing text up to the last slash (up one level)
 	getlast:
 	mov al, [ecx]
 	cmp al, 0
@@ -616,41 +1037,42 @@ getFiles proc
 	cmp al, "\"
 	je doneregressing
 	jmp gotlast
-	
 	doneregressing:
-	
 	
 	ret
 
 getFiles endp
 
-; (✿◠‿◠)  (✿◠‿◠) 
-
+;---------------------------
+; END OF PROCS
+; MAIN CODE BEGINS HERE
+;---------------------------
 main:
 
-	call initialize_blowfish ; (✿◠‿◠) this program can be modified to have the third argument be a key
+	call initialize_blowfish ; (✿◠‿◠) this program can be modified to have the third argument be a key, for now, the key is hardcoded
 
 	push offset arg1
 	push 1
 	call GetCL
 	
 	cmp al, 1
-	jne argerror ; (✿◠‿◠) first argument broken
+	jne argerror ; (✿◠‿◠) Error because first argument broken
 	
 	push offset arg3
 	push 3
 	call GetCL
 	
 	cmp al, 2
-	jne argerror ; (✿◠‿◠) third argument has something going on
+	jne argerror ; (✿◠‿◠) Error because third argument has something going on
 	
 	push offset arg2
 	push 2
 	call GetCL
 	
 	cmp al, 2
-	je encryptan ; (✿◠‿◠) blank second argument
+	je encryptan ; (✿◠‿◠) blank second argument, will assume encryption
 	
+	; (✿◠‿◠) a super efficient comparator, the instructions didn't say case sensitive
 	cmp BYTE PTR [arg2], "/"
 	jne argerror
 	cmp BYTE PTR [arg2+1], "r"
@@ -673,13 +1095,13 @@ main:
 	jmp decryptan
 
 encryptan:
-	mov BYTE PTR [action], 1
+	mov BYTE PTR [action], 1 ; (✿◠‿◠) Sets encryption flag to 1
 
-decryptan:
+decryptan: ; (✿◠‿◠) Encryption flag 0 means decrpy
 	
 	lea ecx, [currentdirectory]
-	mov BYTE PTR [ecx], "." ; (✿◠‿◠) ----------------- initialize currentdirectory as "."
-	call getFiles ; (✿◠‿◠) it goes on in here
+	mov BYTE PTR [ecx], "." ; (✿◠‿◠) initialize currentdirectory as "."
+	call getFiles ; (✿◠‿◠) Here we go! First call into recursive function.
 	ret
 	
 argerror:

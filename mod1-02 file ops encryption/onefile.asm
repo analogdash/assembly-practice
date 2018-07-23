@@ -376,6 +376,15 @@ initialize_blowfish proc
 
 initialize_blowfish endp
 
+encrypt_file proc
+
+encrypt_file endp
+
+decrypt_file proc
+
+decrypt_file endp
+
+
 main:
 
 	call initialize_blowfish
@@ -386,6 +395,8 @@ main:
 
 	;push offset foundfile.cFileName
 	;call StdOut
+
+;fiiiiile
 	
 	push 0
 	push FILE_ATTRIBUTE_NORMAL
@@ -393,7 +404,7 @@ main:
 	push 0
 	push 0
 	push GENERIC_ALL
-	push offset foundfile.cFileName
+	push offset foundfile.cFileName ;filetowork goes here
 	call CreateFileA
 
 	mov [filehandle], eax
@@ -423,38 +434,11 @@ main:
 	push ecx ;file handle
 	call SetFilePointer
 	
-	
-	
-	;------------------------------------------------------VVVVVVV
-	;mov eax, DWORD PTR [filebuffer]
-	
-	;push offset leftside
-	;push eax
-	;call dw2hex
-	
-	;mov ebx, DWORD PTR [filebuffer+4]
-	
-	;push offset rightside
-	;push ebx
-	;call dw2hex
-	
-	;push offset leftside
-	;call StdOut
-	;push offset rightside
-	;call StdOut
-	
-	push offset filebuffer
-	call StdOut
-	
-	push offset divider
-	call StdOut
-	;------------------------------------------------------^^^^^^^^^^^^
-	
-	
+		
 	mov eax, DWORD PTR [filebuffer]
 	mov ebx, DWORD PTR [filebuffer+4]
 	
-	call blowfish_encrypt
+	call blowfish_decrypt
 	
 	mov DWORD PTR [filebuffer], eax
 	mov DWORD PTR [filebuffer+4], ebx
@@ -478,21 +462,21 @@ main:
 	;call StdOut
 	
 
-	push offset filebuffer
-	call StdOut
+	;push offset filebuffer
+	;call StdOut
 	
 	
-	push offset divider
-	call StdOut
+	;push offset divider
+	;call StdOut
 	;------------------------------------------------------xxxxxxxxxx
 	
-	mov eax, DWORD PTR [filebuffer]
-	mov ebx, DWORD PTR [filebuffer+4]
+	;mov eax, DWORD PTR [filebuffer]
+	;mov ebx, DWORD PTR [filebuffer+4]
 	
-	call blowfish_decrypt
+	;call blowfish_decrypt
 	
-	mov DWORD PTR [filebuffer], eax
-	mov DWORD PTR [filebuffer+4], ebx
+	;mov DWORD PTR [filebuffer], eax
+	;mov DWORD PTR [filebuffer+4], ebx
 	
 	;------------------------------------------------------xxxxxxxxxxxxxx
 	;mov eax, DWORD PTR [filebuffer]
@@ -513,11 +497,11 @@ main:
 	;call StdOut
 	
 	
-	push offset filebuffer
-	call StdOut
+	;push offset filebuffer
+	;call StdOut
 	
-	push offset divider
-	call StdOut
+	;push offset divider
+	;call StdOut
 	;push offset crlf
 	;call StdOut
 	;------------------------------------------------------^^^^^^^^^^^^
@@ -525,10 +509,18 @@ main:
 	;mov DWORD PTR [filebuffer], eax
 	;mov DWORD PTR [filebuffer+4], ebx
 	
-	;mov eax, 8
+	mov eax, 8
 	
-	;cmp [readbytes], 8
-	;je middleoffile
+	cmp [readbytes], 0
+	je donereading
+	;
+	;push eax
+	
+	;push offset txtmask
+	;call StdOut
+	
+	;pop eax
+	
 	
 	lea eax, [filebuffer]
 	add eax, 8
@@ -542,19 +534,33 @@ main:
 	sub eax, ebx
 	middleoffile:
 	
+	;cmp eax, 8
+	;jl nowrite
 	
+	
+	;push eax
+	;push offset rightside
+	;push [readbytes]
+	;call dwtoa
+	;push offset rightside
+	;call StdOut
+	;pop eax
+	;push eax
+	;push offset leftside
+	;push eax
+	;call dwtoa
+	;push offset leftside
+	;call StdOut
+	;push offset filebuffer
+	;call StdOut
+	;push offset crlf
+	;call StdOut
+	
+	
+	;pop eax
+
 	push eax
-	push offset leftside
-	push eax
-	call dwtoa
-	push offset leftside
-	call StdOut
-	push offset crlf
-	call StdOut
-	
-	
-	
-	pop eax
+
 	mov ecx, [filehandle]
 	push 0
 	push offset writtenbytes
@@ -563,28 +569,35 @@ main:
 	push ecx
 	call WriteFile
 	
+	pop eax
+	cmp eax, 8
+	jl donereading
+	
 	cmp [readbytes], 8
 	jl donereading
-
 
 	jmp keepreading
 	
 	donereading:
 	
-	push offset readbytesascii
-	push [readbytes]
-	call dwtoa
+	mov eax, [filehandle]
+	push eax
+	call SetEndOfFile
 	
-	push offset writtenbytesascii
-	push [writtenbytes]
-	call dwtoa
+	;push offset readbytesascii
+	;push [readbytes]
+	;call dwtoa
 	
-	push offset readbytesascii
-	call StdOut
-	push offset crlf
-	call StdOut
-	push offset writtenbytesascii
-	call StdOut
+	;push offset writtenbytesascii
+	;push [writtenbytes]
+	;call dwtoa
+	
+	;push offset readbytesascii
+	;call StdOut
+	;push offset crlf
+	;call StdOut
+	;push offset writtenbytesascii
+	;call StdOut
 	
 	
 
