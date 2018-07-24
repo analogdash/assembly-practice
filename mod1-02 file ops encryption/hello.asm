@@ -208,9 +208,9 @@ key2 db "let there be light"
 	
 .code
 
-;------------------------
-; < Begin Blowfish cipher code >
-;------------------------
+;----------------------------------->
+;   Begin Blowfish cipher code     <
+;----------------------------------->
 
 fbox proc ; (✿◠‿◠) runs eax through the f-box while preserving ebx,ecx, and edx
 push edx
@@ -295,7 +295,7 @@ blowfish_decrypt proc ; (✿◠‿◠) left is eax, right is ebx
 	lea ecx, [encodeme]
 	sub ecx, 4
 
-	sub ecx, 4 ; (✿◠‿◠) this is a hack for stopping 8 bytes (2 dds) from end
+	sub ecx, 4 ; (✿◠‿◠) this is a hack for stopping 4 bytes (1 dd) from end
 	keepgoing:
 		add ecx, 4
 		xor eax, [ecx]
@@ -325,7 +325,7 @@ blowfish_decrypt endp
 
 initialize_blowfish proc
 
-	; (✿◠‿◠) initialize key into P array
+	; (✿◠‿◠) initialize key into P array and S-boxes
 	lea ecx, [parray]
 	lea ebx, [key]
 	noadjust:
@@ -345,7 +345,7 @@ initialize_blowfish proc
 	jmp noadjust
 	donepkey:
 
-	; (✿◠‿◠)  blowfish encrypt 00000000 to recreate P array
+	; (✿◠‿◠)  key generation begins with 0 input to recreate P array
 	xor eax,eax
 	xor ebx,ebx
 
@@ -385,9 +385,13 @@ initialize_blowfish proc
 
 initialize_blowfish endp
 
-;------------------------
-; < / End Blowfish cipher code >
-;------------------------
+;----------------------------------->
+;     End Blowfish cipher code     <
+;----------------------------------->
+
+;----------------------------------->
+;   Begin File Operations Code     <
+;----------------------------------->
 
 loadpath proc ;writes relative path (currentdirectory) and filename into filetowork string
 	lea edx, [filetowork] ;blanks filetowork
@@ -472,6 +476,7 @@ dofile proc ; works on file
 	jmp eofnotfound
 	eoffound:
 	
+	; (✿◠‿◠) my super efficient string comparator
 	dec eax
 	cmp BYTE PTR [eax], "d"
 	jne notenced
@@ -513,28 +518,12 @@ dofile proc ; works on file
 	notenced:
 	cmp [action], 0
 	je skip
-	
-	;push offset gonenc
-	;call StdOut
-	;push offset filetowork
-	;call StdOut
-	;push offset crlf
-	;call StdOut
-	
 	call get_encryptan
 	ret
 	
 	enced:
 	cmp [action], 1
 	je skip
-	
-	;push offset gondec
-	;call StdOut
-	;push offset filetowork
-	;call StdOut
-	;push offset crlf
-	;call StdOut
-	
 	call get_decryptan
 	ret
 	
@@ -544,24 +533,28 @@ dofile endp
 
 get_encryptan proc
 	
-	;call loadpath
+	;(✿◠‿◠) this applies a simple Electronic Codebook (ECB) to 64 bit chunks of the file with null padding
+	; required variables must be set: action, filetowork
 
+	; (✿◠‿◠) Opens file to work on
 	push 0
 	push FILE_ATTRIBUTE_NORMAL
 	push OPEN_EXISTING
 	push 0
 	push 0
 	push GENERIC_ALL
-	push offset filetowork ;filetowork goes here
+	push offset filetowork
 	call CreateFileA
 	
 	mov [filehandle], eax
 	
 	keepreading:
 	
+	; (✿◠‿◠) clears file buffer (in case less than 8 bytes are read)
 	mov DWORD PTR [filebuffer], 0
 	mov DWORD PTR [filebuffer+4], 0
 	
+	; (✿◠‿◠) Reads 8 bytes from file (64 bits. the size of a chunk!)
 	mov ecx, [filehandle]
 	push 0
 	push offset readbytes
@@ -570,9 +563,11 @@ get_encryptan proc
 	push ecx
 	call ReadFile
 	
+	; (✿◠‿◠) escape if end of file
 	cmp [readbytes], 0
 	je donereading
 	
+	; (✿◠‿◠) move file pointer back the same number of bytes read
 	mov ecx, [filehandle]
 	mov edx, [readbytes]
 	neg edx
@@ -581,32 +576,22 @@ get_encryptan proc
 	push edx ;negative of read bytes
 	push ecx ;file handle
 	call SetFilePointer
-			
+	
+	; (✿◠‿◠) save buffer to eax and ebx registers for left and right side
 	mov eax, DWORD PTR [filebuffer]
 	mov ebx, DWORD PTR [filebuffer+4]
 	
-	call blowfish_encrypt
+	call blowfish_encrypt ; (✿◠‿◠) Shazam!
 	
+	; (✿◠‿◠) Save encrypted block back to buffer
 	mov DWORD PTR [filebuffer], eax
 	mov DWORD PTR [filebuffer+4], ebx
-		
-	;lea eax, [filebuffer]
-	;add eax, 8
-	;keepchecking:
-	;dec eax
-	;mov bl, BYTE PTR [eax]
-	;cmp bl, 0
-	;je keepchecking
-	;inc eax
-	;lea ebx, [filebuffer]
-	;sub eax, ebx
-	;middleoffile:
 	
-	;pop eax
+	; (✿◠‿◠) Write to file!
 	mov ecx, [filehandle]
 	push 0
 	push offset writtenbytes
-	push 8 ; 8 bytes to write
+	push 8 ; Writes 8 bytes to file. Null padding is left in for simplicity.
 	push offset filebuffer
 	push ecx
 	call WriteFile
@@ -618,7 +603,12 @@ get_encryptan proc
 	
 	donereading:
 	
-	; Do the renamey bit
+	; (✿◠‿◠) Close file handle to be able to rename
+	mov eax, [filehandle]
+	push eax
+	call CloseHandle
+	
+	; (✿◠‿◠) Do the renamey bit
 	
 	call loadnewfile
 	
@@ -630,6 +620,7 @@ get_encryptan proc
 	jmp findingend
 	foundending:
 	
+	; (✿◠‿◠) another super efficient string append
 	mov BYTE PTR [eax], "_"
 	inc eax
 	mov BYTE PTR [eax], "d"
@@ -654,26 +645,14 @@ get_encryptan proc
 	inc eax
 	mov BYTE PTR [eax], "d"
 
-	;push offset gonenc
-	;call StdOut
-	;push offset newfilename
-	;call StdOut
-	;push offset crlf
-	;call StdOut
-	;push offset gondec
-	;call StdOut
-	;push offset filetowork
-	;call StdOut
-	;push Offset crlf
-	;call StdOut
-	
-	mov eax, [filehandle]
-	push eax
-	call CloseHandle
-	
 	push offset newfilename
 	push offset filetowork
 	call MoveFile
+	
+	push offset newfilename
+	call StdOut
+	push offset crlf
+	call StdOut
 	
 	ret
 	
@@ -681,7 +660,7 @@ get_encryptan endp
 
 get_decryptan proc
 	
-	;call loadpath
+	;(✿◠‿◠) This is close to identical as encryptan with the exception of calling blowfish_decrypt
 
 	push 0
 	push FILE_ATTRIBUTE_NORMAL
@@ -722,31 +701,20 @@ get_decryptan proc
 	mov eax, DWORD PTR [filebuffer]
 	mov ebx, DWORD PTR [filebuffer+4]
 	
-	call blowfish_decrypt
+	call blowfish_decrypt ; (✿◠‿◠) Shazaam!
 	
 	mov DWORD PTR [filebuffer], eax
 	mov DWORD PTR [filebuffer+4], ebx
 
-	;--------------------------------------------------------
+	; (✿◠‿◠) Any code that removes 0 padding can be inserted here
+
 	mov eax, 8
-	
-	;lea eax, [filebuffer]
-	;add eax, 8
-	;keepchecking:
-	;dec eax
-	;mov bl, BYTE PTR [eax]
-	;cmp bl, 0
-	;je keepchecking
-	;inc eax
-	;lea ebx, [filebuffer]
-	;sub eax, ebx
-	;middleoffile:
 	
 	push eax
 	mov ecx, [filehandle]
 	push 0
 	push offset writtenbytes
-	push eax
+	push eax ; usually 8 bytes, less for near end of file
 	push offset filebuffer
 	push ecx
 	call WriteFile
@@ -762,17 +730,15 @@ get_decryptan proc
 	
 	donereading:
 	
-	
-	
-	
-	
 	mov eax, [filehandle]
 	push eax
 	call SetEndOfFile
 
+	mov eax, [filehandle]
+	push eax
+	call CloseHandle
 	
-	;=================================================
-	; Do the renamey bit
+	; (✿◠‿◠) Do the renamey bit
 	
 	call loadnewfile
 	
@@ -784,6 +750,7 @@ get_decryptan proc
 	jmp findingend
 	foundending:
 	
+	; (✿◠‿◠) super efficient known-length string truncater
 	dec eax
 	mov BYTE PTR [eax], 0 ; d
 	dec eax
@@ -809,31 +776,26 @@ get_decryptan proc
 	dec eax
 	mov BYTE PTR [eax], 0 ; _
 	
-	mov eax, [filehandle]
-	
-push eax
-call CloseHandle
-	
-	;push offset gonenc
-	;call StdOut
 	push offset newfilename
-	;call StdOut
-	;push offset crlf
-	;call StdOut
-	;push offset gondec
-	;call StdOut
 	push offset filetowork
-	;call StdOut
-	;push Offset crlf
-	;call StdOut
 	call MoveFile
 
+	push offset newfilename
+	call StdOut
+	push offset crlf
+	call StdOut
+	
 	ret
 	
 get_decryptan endp
 
+;----------------------------------->
+;    File/Directory traversal!        <
+;----------------------------------->
 
-getFiles proc ;(✿◠‿◠) this is where the magic happens
+getFiles proc ;(✿◠‿◠) this is where the recursive magic happens
+
+	;required variable: currentdirectory
 
 	lea edx, [currentmaskALL] ; (✿◠‿◠) Blank out and initialize search masks
 	blankingALL:
@@ -854,7 +816,6 @@ getFiles proc ;(✿◠‿◠) this is where the magic happens
 	inc edx
 	jmp blankingTXT
 	doneblankingTXT:
-	
 
 	lea ecx,[currentdirectory] ; (✿◠‿◠) Make search masks from currentdirectory
 	
@@ -871,7 +832,6 @@ getFiles proc ;(✿◠‿◠) this is where the magic happens
 	mov BYTE PTR [edx], "\"
 	inc edx
 	mov BYTE PTR [edx], "*"
-
 	
 	lea ecx,[currentdirectory]
 	
@@ -900,7 +860,7 @@ getFiles proc ;(✿◠‿◠) this is where the magic happens
 	jmp appendmask
 	doneappendingmask:
 
-; ---------------------------------------- Find all text files
+	; Text masks ready
 	
 	push offset foundfile
 	push offset currentmaskTXT
@@ -909,22 +869,23 @@ getFiles proc ;(✿◠‿◠) this is where the magic happens
 	
 	cmp eax, INVALID_HANDLE_VALUE
 	je nothinghere
+	
+	mov eax, foundfile.dwFileAttributes ; skip directories
+	and eax, FILE_ATTRIBUTE_DIRECTORY
+	jnz printerrythang
 		
-	;  --------------------------------FIRST FILE FOUND PUT FILE OPS HERE VVVV
+	;  ---------------- FIRST FILE FOUND PUT FILE OPS HERE VVVV
+
 	
 
 	call loadpath ;filetowork is now the filename
 	call dofile
-		
-	;push offset newfilename
-	;call StdOut
-	;push offset crlf
-	;call StdOut
 	
+
 	
+	;  ---------------- End of working with first file  ^^^^^
 	
-	;  ------------------------------------- End of working with first file  ^^^^^
-;  ------------------------------------------- find next text files
+	;find next text files
 	printerrythang:
 	pop eax
 	push eax
@@ -935,17 +896,19 @@ getFiles proc ;(✿◠‿◠) this is where the magic happens
 	cmp eax, 0
 	je nothinghere
 	
-	; ------------------------------------------ FOUND SECOND FILE PUT FILEOPS HERE VVVVV
+	mov eax, foundfile.dwFileAttributes ; skip directories
+	and eax, FILE_ATTRIBUTE_DIRECTORY
+	jnz printerrythang
+	
+	; ----------------- FOUND SECOND FILE PUT FILEOPS HERE VVVVV
+	
+	
 	
 	call loadpath
 	call dofile
 	
-	;push offset newfilename
-	;call StdOut
-	;push offset crlf
-	;call StdOut
 	
-	;  --------------------------------------------------done working on 2nd file ^^^^^^
+	;  ---------------- done working on 2nd file ^^^^^^
 	
 	jmp printerrythang
 	
@@ -1047,6 +1010,7 @@ getFiles endp
 ; END OF PROCS
 ; MAIN CODE BEGINS HERE
 ;---------------------------
+
 main:
 
 	call initialize_blowfish ; (✿◠‿◠) this program can be modified to have the third argument be a key, for now, the key is hardcoded
