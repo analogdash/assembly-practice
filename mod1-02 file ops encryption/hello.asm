@@ -912,10 +912,10 @@ getFiles proc ;(✿◠‿◠) this is where the recursive magic happens
 	
 	jmp printerrythang
 	
-;  ---------------------------------------------- done finding textfiles
+	;  ---------------------------------------------- done finding files
 	nothinghere:
 	call FindClose
-; -----------------------------------------------find all directories
+	; ---------------------------------------------- find all directories
 
 	push offset foundfile
 	push offset currentmaskALL
@@ -934,7 +934,7 @@ getFiles proc ;(✿◠‿◠) this is where the recursive magic happens
 	
 	printerrythang2:
 	pop eax
-	push eax
+	push eax ;handle from stack
 	push offset foundfile
 	push eax
 	call FindNextFileA
@@ -982,7 +982,7 @@ getFiles proc ;(✿◠‿◠) this is where the recursive magic happens
 	jmp printerrythang2 ; (✿◠‿◠) Go back and move on to the next directory!
 	
 	nothinghere2:
-	call FindClose; (✿◠‿◠)  gets rid of no longer needed search handle to allow new search handle to be seen
+	call FindClose; (✿◠‿◠)  gets rid of no longer needed search handle to allow new search handle to be seen (this also pops the handle)
 	
 	lea ecx, [currentdirectory] ; (✿◠‿◠) now we return currentdirectory to previous state by erasing text up to the last slash (up one level)
 	getlast:
@@ -1061,11 +1061,14 @@ main:
 encryptan:
 	mov BYTE PTR [action], 1 ; (✿◠‿◠) Sets encryption flag to 1
 
-decryptan: ; (✿◠‿◠) Encryption flag 0 means decrpy
+decryptan: ; (✿◠‿◠) Encryption flag 0 means decrpyt
 	
 	lea ecx, [currentdirectory]
+	
 	mov BYTE PTR [ecx], "." ; (✿◠‿◠) initialize currentdirectory as "."
+	
 	call getFiles ; (✿◠‿◠) Here we go! First call into recursive function.
+	
 	ret
 	
 argerror:
