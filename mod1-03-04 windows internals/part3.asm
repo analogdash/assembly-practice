@@ -58,6 +58,9 @@ main:
 	; call StdOut
 	;------------
 	
+	
+	
+	
 
 	push 0
     push TH32CS_SNAPALL
@@ -115,7 +118,7 @@ main:
 	
 	push PAGE_EXECUTE_READWRITE ;PAGE_EXECUTE_READWRITE
 	push MEM_RESERVE OR MEM_COMMIT
-	push 9 ;INSERT SIZE IN BYTES ; strlen of dll + 1
+	push 9 ;INSERT SIZE IN BYTES ; strlen of dll name + 1
 	push 0
 	push procHandle
 	call VirtualAllocEx
@@ -146,7 +149,7 @@ main:
 	
 	push NULL
 	push 1024 ; SIZE OF DLL + 1
-	push offset loadedDLL
+	push offset loadedDLL ; MUST be ABSOLUTE
 	push baseaddress
 	push procHandle
 	call WriteProcessMemory
@@ -214,6 +217,12 @@ main:
   ; LPDWORD                lpThreadId
 ; );
 	
+	
+	
+	;push offset loadedDLL
+    ;call LoadLibrary
+	
+	
 	push NULL
 	push NULL
 	push baseaddress
@@ -232,8 +241,7 @@ main:
 	
 	succeedopen6:
 	;--------------------
-    push offset loadedDLL
-    call LoadLibrary
+
 	
 	
 	call ExitProcess

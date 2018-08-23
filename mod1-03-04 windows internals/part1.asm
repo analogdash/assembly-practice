@@ -13,6 +13,8 @@ include C:\masm32\include\masm32rt.inc
 	
 	notepad db "notepad", 0
 	notepadexe db "notepad.exe", 0
+	notepadpath db "C:\Windows\notepad",0
+	notepadpathexe db "C:\Windows\notepad.exe",0
 	calcexe db "calc.exe", 0
 	
 	msg db "No notepad for you! Calculator only!", 0
@@ -33,10 +35,12 @@ main:
 	push offset arg2
 	push 2
 	call GetCL
-	
+
+	cmp al, 2
+	je blanktwo
 	cmp al, 1
 	jne argerror ;second argument broken
-	
+
 	push offset arg3
 	push 3
 	call GetCL
@@ -44,6 +48,29 @@ main:
 	cmp al, 2
 	jne argerror ;third argument exists when it shouldn't
 	
+	jmp hastwo
+	
+	blanktwo:
+	lea eax, [arg1]
+	lea ebx, [arg2]
+	
+	cmp BYTE PTR [eax], "/"
+	jne argerror
+	add eax, 2
+	cmp BYTE PTR [eax], "="
+	jne argerror
+	dec eax
+	cmp BYTE PTR [eax], "A"
+	je argerror
+	cmp BYTE PTR [eax], "a"
+	je argerror
+	cmp BYTE PTR [eax], "p"
+	je onlyp
+	cmp BYTE PTR [eax], "P"
+	je onlyp
+	jmp argerror
+	
+	hastwo:
 	lea eax, [arg1]
 	lea ebx, [arg2]
 	
@@ -85,6 +112,14 @@ main:
 	je formatap
 	jmp argerror
 	
+	onlyp:
+	add eax, 2
+	push ebx
+	push eax
+	push offset Output
+	call lstrcatA
+	jmp notepadcheck
+	
 	formatpa:
 	add eax, 2
 	add ebx, 2
@@ -101,6 +136,7 @@ main:
 	push ebx
 	push offset Output
 	call lstrcatA
+	jmp notepadcheck
 	
 	notepadcheck:
 	push offset Output
@@ -111,9 +147,21 @@ main:
 	push offset Output
 	push offset notepadexe
 	call lstrcmpiA
+	cmp eax, 0
+	je isnotepad
+	push offset Output
+	push offset notepadpath
+	call lstrcmpiA
+	cmp eax, 0
+	je isnotepad
+	push offset Output
+	push offset notepadpathexe
+	call lstrcmpiA
+	cmp eax, 0
 	je isnotepad
 	
-	;pop eax ;pointer to arguments is at top of stack
+	
+	;pop eax ;pointer to arguments is at top of stack if two arguments
 	;push eax
 	push offset Arguments
 	call lstrcatA
